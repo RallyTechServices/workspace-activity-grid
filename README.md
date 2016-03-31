@@ -1,5 +1,21 @@
 #Workspace Activity
 
+Grid that shows the number of artifacts in the selected (workspace) updated within the past "DAYS TO LOOKBACK" number of days.  
+
+![ScreenShot](/images/workspace-activity-grid.png)
+
+The count is based on the Artifact Last Update Date (or Date for Test Case Result) from the WSAPI API and does not include deleted items or items in closed projects.  
+
+If the "DAYS TO LOOKBACK" is set to 0, the app will return the total count of artifacts in the workspace.  
+
+If no workspaces are selected, the app will return counts for the current workspace.  
+
+Note that the counts are subject to permissions of the user running the app.  
+
+
+
+
+
 ## Development Notes
 
 ### First Load
