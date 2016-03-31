@@ -12,9 +12,10 @@ Ext.define('Rally.technicalservices.WsapiToolbox', {
         Ext.create('Rally.data.wsapi.Store',storeConfig).load({
             callback: function(records, operation, success){
                 if (success){
-                    deferred.resolve(operation.resultSet.totalRecords);
+                    deferred.resolve({count: operation.resultSet.totalRecords, error: null});
                 } else {
-                    deferred.reject(Ext.String.format("Error getting {0} count for {1}: {2}", config.model, config.filters && config.filters.toString() || "(No Filter)", operation.error.errors.join(',')));
+                    var errorMessage = Ext.String.format("{0} error: {1}", config.model, operation.error.errors.join(','));
+                    deferred.resolve({error: errorMessage, count: 'ERROR'});
                 }
             }
         });
@@ -95,27 +96,21 @@ Ext.define('Rally.technicalservices.WsapiToolbox', {
             }
         });
         return deferred;
-    }
-    //fetchWsapiRecords: function(model, query_filters, fetch_fields, context){
-    //    var deferred = Ext.create('Deft.Deferred');
-    //
-    //    var store = Ext.create('Rally.data.wsapi.Store',{
-    //        model: model,
-    //        fetch: fetch_fields,
-    //        filters: query_filters,
-    //        context: context,
-    //        limit: Infinity
-    //    }).load({
-    //        callback: function(records, operation, success){
-    //            if (success){
-    //                deferred.resolve(records);
-    //            } else {
-    //                deferred.reject(Ext.String.format("Error getting {0} for {1}: {2}", model, query_filters.toString(), operation.error.errors.join(',')));
-    //            }
-    //        }
-    //    });
-    //    return deferred;
-    //},
+    },
+    fetchWsapiRecords: function(config){
+        var deferred = Ext.create('Deft.Deferred');
+
+        Ext.create('Rally.data.wsapi.Store',config).load({
+            callback: function(records, operation, success){
+                if (success){
+                    deferred.resolve(records);
+                } else {
+                    deferred.reject(Ext.String.format("Error getting {0} for {1}: {2}", config.model, config.filters && config.filters.toString() || "No Filters", operation.error.errors.join(',')));
+                }
+            }
+        });
+        return deferred;
+    },
     //fetchWsapiRecordsWithPaging: function(model, query_filters, fetch_fields, context){
     //    var deferred = Ext.create('Deft.Deferred'),
     //        pageSize = 200;

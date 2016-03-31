@@ -40,7 +40,7 @@ Ext.define("WorkspaceActivityApp", {
         testcaseresult: {
             TypePath: 'testcaseresult',
             Name: 'Test Case Result',
-            DateField: 'Date'
+            DateField: 'Datrrre'
         }
     },
     daysBackDefault: 60,
@@ -129,6 +129,21 @@ Ext.define("WorkspaceActivityApp", {
             },
             margin: '20 10 10 10'
         });
+
+        selectorCt.add({
+            xtype: 'rallybutton',
+            text: 'Export',
+            width: buttonWidth,
+            itemId: 'bt-export',
+            cls: 'primary',
+            listeners: {
+                click: this._export,
+                scope: this
+            },
+            disabled: true,
+            margin: '10 10 10 10'
+        });
+
         this.down('#display_box').add({
             xtype: 'container',
             itemId: 'grid_box',
@@ -146,6 +161,7 @@ Ext.define("WorkspaceActivityApp", {
 
         this.down('#grid_box').removeAll();
         this.down('#grid_box').update({message: ""});
+        this.down('#bt-export').setDisabled(true);
 
         if (selectedTypes.length > 0 && selectedContexts.length > 0){
             if (!Ext.isArray(selectedTypes)){
@@ -208,7 +224,6 @@ Ext.define("WorkspaceActivityApp", {
 
     _addGrid: function(data){
 
-
         var fields = _.keys(data[0]),
             store = Ext.create('Rally.data.custom.Store',{
             fields: fields,
@@ -219,12 +234,13 @@ Ext.define("WorkspaceActivityApp", {
         this.logger.log('_addGrid', data, fields, pageSize);
 
         this.down('#grid_box').add({
-            xtype: 'rallygrid',
-            store: store,
-            columnCfgs: this._getColumnCfgs(),
-            pageSize: pageSize,
-            showPagingToolbar: false
+                xtype: 'rallygrid',
+                store: store,
+                columnCfgs: this._getColumnCfgs(),
+                pageSize: pageSize,
+                showPagingToolbar: false
         });
+        this.down('#bt-export').setDisabled(false);
     },
     _getColumnCfgs: function(){
         return [{
@@ -232,17 +248,28 @@ Ext.define("WorkspaceActivityApp", {
             text: 'Workspace',
             flex: 2
         },{
-        //    dataIndex: 'project',
-        //    text: 'Project',
-        //    flex: 2
-        //},{
             dataIndex: 'artifactType',
             text: 'Type',
             flex: 1
         },{
             dataIndex: 'count',
-            text: 'Count'
+            text: 'Count',
+            renderer: function(v,m,r){
+                if (r.get('error')){
+                    return '<div class="picto icon-warning warning" title="' + r.get('error') + '" style="color:#FAD200;font-size:16px;margin:10px"></div>';
+                }
+                return v;
+            }
         }];
+    },
+    _export: function(){
+        var records = this.down('rallygrid') && this.down('rallygrid').getStore().getRange();
+        if (!records){
+            Rally.ui.notify.Notifier.showError({message: "No records to export."});
+            return;
+        }
+        var filename = Ext.String.format('workspace-activity-{0}.csv', Rally.util.DateTime.format(new Date(), 'Y-m-d-h-M-s'));
+        Rally.technicalservices.Exporter.export(records, this._getColumnCfgs(), filename);
     },
     _fetchContextCount: function(context, selectedTypes, daysBack){
         var promises = [],
@@ -269,24 +296,27 @@ Ext.define("WorkspaceActivityApp", {
                 context: context,
                 filters: filters
             }
-
             promises.push(function(){return Rally.technicalservices.WsapiToolbox.fetchWsapiCount(config)});
         });
 
         Rally.technicalservices.promise.ParallelThrottle.throttle(promises, selectedTypes.length).then({
             success: function(results){
+                this.logger.log('_fetchContextCount', results);
                 this.incrementWorkspacesLoaded();
 
                 var data = [];
                 for(var i=0; i<results.length; i++){
-                    var artifactName = supportedTypeDefs[selectedTypes[i]].Name;
-                    data.push({
-                        workspace: context.workspaceName,
-                        project: context.projectName,
-                        artifactType: artifactName,
-                        count: results[i],
-                        error: null
-                    });
+                    var artifactName = supportedTypeDefs[selectedTypes[i]].Name,
+                        count = results[i].count,
+                        error = results[i].error;
+                        data.push({
+                            workspace: context.workspaceName,
+                            project: context.projectName,
+                            artifactType: artifactName,
+                            count: count,
+                            error: error
+                        });
+
                 }
                 deferred.resolve(data);
             },

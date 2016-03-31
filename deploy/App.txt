@@ -3,11 +3,11 @@
 <head>
     <title>Workspace Activity</title>
     <!--  (c) 2015 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Wed Mar 30 2016 22:00:51 GMT-0600 (MDT) -->
+    <!--  Build Date: Thu Mar 31 2016 17:30:50 GMT-0600 (MDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Wed Mar 30 2016 22:00:51 GMT-0600 (MDT)";
-        var CHECKSUM = 22108283900;
+        var APP_BUILD_DATE = "Thu Mar 31 2016 17:30:50 GMT-0600 (MDT)";
+        var CHECKSUM = 29640958598;
     </script>
     
     <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
@@ -15,6 +15,127 @@
     <script type="text/javascript">
         Rally.onReady(function() {
              
+Ext.define('Rally.technicalservices.Exporter',{
+    singleton: true,
+    export: function(records, columns, filename){
+
+        var data = _.map(records, function(r){ return r.getData(); });
+
+        var csv = this._transformDataToDelimitedString(data, columns);
+
+        this.saveCSVToFile(csv, filename);
+
+    },
+    _transformDataToDelimitedString: function(data, columns){
+        var csvArray = [],
+            delimiter = ",",
+            rowDelimiter = "\r\n",
+            re = new RegExp(delimiter + '|\"|\r|\n','g');
+
+        var column_keys = _.map(columns, function(c){ return c.dataIndex; }),
+            column_headers = _.pluck(columns, 'text');
+
+        csvArray.push(column_headers.join(delimiter));
+
+        Ext.Array.each(data, function(obj){
+            var data = [];
+            Ext.Array.each(column_keys, function(key){
+                var val = obj[key];
+                if (val){
+                    if (re.test(val)){ //enclose in double quotes if we have the delimiters
+                        val = val.replace('"','\"\"');
+                        val = Ext.String.format("\"{0}\"",val);
+                    }
+                }
+                data.push(val);
+            });
+            csvArray.push(data.join(delimiter));
+        });
+
+        return csvArray.join(rowDelimiter);
+    },
+    saveCSVToFile:function(csv,file_name,type_object){
+        if (type_object === undefined){
+            type_object = {type:'text/csv;charset=utf-8'};
+        }
+        this.saveAs(csv,file_name, type_object);
+    },
+    saveAs: function(textToWrite, fileName)
+    {
+        if (Ext.isIE9m){
+            Rally.ui.notify.Notifier.showWarning({message: "Export is not supported for IE9 and below."});
+            return;
+        }
+
+        var textFileAsBlob = null;
+        try {
+            textFileAsBlob = new Blob([textToWrite], {type:'text/plain'});
+        }
+        catch(e){
+            window.BlobBuilder = window.BlobBuilder ||
+                window.WebKitBlobBuilder ||
+                window.MozBlobBuilder ||
+                window.MSBlobBuilder;
+            if (window.BlobBuilder && e.name == 'TypeError'){
+                bb = new BlobBuilder();
+                bb.append([textToWrite]);
+                textFileAsBlob = bb.getBlob("text/plain");
+            }
+
+        }
+
+        if (!textFileAsBlob){
+            Rally.ui.notify.Notifier.showWarning({message: "Export is not supported for this browser."});
+            return;
+        }
+
+        var fileNameToSaveAs = fileName;
+
+        if (Ext.isIE10p){
+            window.navigator.msSaveOrOpenBlob(textFileAsBlob,fileNameToSaveAs); // Now the user will have the option of clicking the Save button and the Open button.
+            return;
+        }
+
+        var url = this.createObjectURL(textFileAsBlob);
+
+        if (url){
+            var downloadLink = document.createElement("a");
+            if ("download" in downloadLink){
+                downloadLink.download = fileNameToSaveAs;
+            } else {
+                //Open the file in a new tab
+                downloadLink.target = "_blank";
+            }
+
+            downloadLink.innerHTML = "Download File";
+            downloadLink.href = url;
+            if (!Ext.isChrome){
+                // Firefox requires the link to be added to the DOM
+                // before it can be clicked.
+                downloadLink.onclick = this.destroyClickedElement;
+                downloadLink.style.display = "none";
+                document.body.appendChild(downloadLink);
+            }
+            downloadLink.click();
+        } else {
+            Rally.ui.notify.Notifier.showError({message: "Export is not supported "});
+        }
+
+    },
+    createObjectURL: function ( file ) {
+        if ( window.webkitURL ) {
+            return window.webkitURL.createObjectURL( file );
+        } else if ( window.URL && window.URL.createObjectURL ) {
+            return window.URL.createObjectURL( file );
+        } else {
+            return null;
+        }
+    },
+    destroyClickedElement: function(event)
+    {
+        document.body.removeChild(event.target);
+    }
+});
 Ext.define('Rally.technicalservices.promise.ParallelThrottle',{
     requires: ['Deft.promise.Promise'],
     statics: {
@@ -222,9 +343,10 @@ Ext.define('Rally.technicalservices.WsapiToolbox', {
         Ext.create('Rally.data.wsapi.Store',storeConfig).load({
             callback: function(records, operation, success){
                 if (success){
-                    deferred.resolve(operation.resultSet.totalRecords);
+                    deferred.resolve({count: operation.resultSet.totalRecords, error: null});
                 } else {
-                    deferred.reject(Ext.String.format("Error getting {0} count for {1}: {2}", config.model, config.filters && config.filters.toString() || "(No Filter)", operation.error.errors.join(',')));
+                    var errorMessage = Ext.String.format("{0} error: {1}", config.model, operation.error.errors.join(','));
+                    deferred.resolve({error: errorMessage, count: 'ERROR'});
                 }
             }
         });
@@ -305,27 +427,21 @@ Ext.define('Rally.technicalservices.WsapiToolbox', {
             }
         });
         return deferred;
-    }
-    //fetchWsapiRecords: function(model, query_filters, fetch_fields, context){
-    //    var deferred = Ext.create('Deft.Deferred');
-    //
-    //    var store = Ext.create('Rally.data.wsapi.Store',{
-    //        model: model,
-    //        fetch: fetch_fields,
-    //        filters: query_filters,
-    //        context: context,
-    //        limit: Infinity
-    //    }).load({
-    //        callback: function(records, operation, success){
-    //            if (success){
-    //                deferred.resolve(records);
-    //            } else {
-    //                deferred.reject(Ext.String.format("Error getting {0} for {1}: {2}", model, query_filters.toString(), operation.error.errors.join(',')));
-    //            }
-    //        }
-    //    });
-    //    return deferred;
-    //},
+    },
+    fetchWsapiRecords: function(config){
+        var deferred = Ext.create('Deft.Deferred');
+
+        Ext.create('Rally.data.wsapi.Store',config).load({
+            callback: function(records, operation, success){
+                if (success){
+                    deferred.resolve(records);
+                } else {
+                    deferred.reject(Ext.String.format("Error getting {0} for {1}: {2}", config.model, config.filters && config.filters.toString() || "No Filters", operation.error.errors.join(',')));
+                }
+            }
+        });
+        return deferred;
+    },
     //fetchWsapiRecordsWithPaging: function(model, query_filters, fetch_fields, context){
     //    var deferred = Ext.create('Deft.Deferred'),
     //        pageSize = 200;
@@ -718,7 +834,7 @@ Ext.define("WorkspaceActivityApp", {
         testcaseresult: {
             TypePath: 'testcaseresult',
             Name: 'Test Case Result',
-            DateField: 'Date'
+            DateField: 'Datrrre'
         }
     },
     daysBackDefault: 60,
@@ -807,6 +923,21 @@ Ext.define("WorkspaceActivityApp", {
             },
             margin: '20 10 10 10'
         });
+
+        selectorCt.add({
+            xtype: 'rallybutton',
+            text: 'Export',
+            width: buttonWidth,
+            itemId: 'bt-export',
+            cls: 'primary',
+            listeners: {
+                click: this._export,
+                scope: this
+            },
+            disabled: true,
+            margin: '10 10 10 10'
+        });
+
         this.down('#display_box').add({
             xtype: 'container',
             itemId: 'grid_box',
@@ -824,6 +955,7 @@ Ext.define("WorkspaceActivityApp", {
 
         this.down('#grid_box').removeAll();
         this.down('#grid_box').update({message: ""});
+        this.down('#bt-export').setDisabled(true);
 
         if (selectedTypes.length > 0 && selectedContexts.length > 0){
             if (!Ext.isArray(selectedTypes)){
@@ -886,7 +1018,6 @@ Ext.define("WorkspaceActivityApp", {
 
     _addGrid: function(data){
 
-
         var fields = _.keys(data[0]),
             store = Ext.create('Rally.data.custom.Store',{
             fields: fields,
@@ -897,12 +1028,13 @@ Ext.define("WorkspaceActivityApp", {
         this.logger.log('_addGrid', data, fields, pageSize);
 
         this.down('#grid_box').add({
-            xtype: 'rallygrid',
-            store: store,
-            columnCfgs: this._getColumnCfgs(),
-            pageSize: pageSize,
-            showPagingToolbar: false
+                xtype: 'rallygrid',
+                store: store,
+                columnCfgs: this._getColumnCfgs(),
+                pageSize: pageSize,
+                showPagingToolbar: false
         });
+        this.down('#bt-export').setDisabled(false);
     },
     _getColumnCfgs: function(){
         return [{
@@ -910,17 +1042,28 @@ Ext.define("WorkspaceActivityApp", {
             text: 'Workspace',
             flex: 2
         },{
-        //    dataIndex: 'project',
-        //    text: 'Project',
-        //    flex: 2
-        //},{
             dataIndex: 'artifactType',
             text: 'Type',
             flex: 1
         },{
             dataIndex: 'count',
-            text: 'Count'
+            text: 'Count',
+            renderer: function(v,m,r){
+                if (r.get('error')){
+                    return '<div class="picto icon-warning warning" title="' + r.get('error') + '" style="color:#FAD200;font-size:16px;margin:10px"></div>';
+                }
+                return v;
+            }
         }];
+    },
+    _export: function(){
+        var records = this.down('rallygrid') && this.down('rallygrid').getStore().getRange();
+        if (!records){
+            Rally.ui.notify.Notifier.showError({message: "No records to export."});
+            return;
+        }
+        var filename = Ext.String.format('workspace-activity-{0}.csv', Rally.util.DateTime.format(new Date(), 'Y-m-d-h-M-s'));
+        Rally.technicalservices.Exporter.export(records, this._getColumnCfgs(), filename);
     },
     _fetchContextCount: function(context, selectedTypes, daysBack){
         var promises = [],
@@ -947,24 +1090,27 @@ Ext.define("WorkspaceActivityApp", {
                 context: context,
                 filters: filters
             }
-
             promises.push(function(){return Rally.technicalservices.WsapiToolbox.fetchWsapiCount(config)});
         });
 
         Rally.technicalservices.promise.ParallelThrottle.throttle(promises, selectedTypes.length).then({
             success: function(results){
+                this.logger.log('_fetchContextCount', results);
                 this.incrementWorkspacesLoaded();
 
                 var data = [];
                 for(var i=0; i<results.length; i++){
-                    var artifactName = supportedTypeDefs[selectedTypes[i]].Name;
-                    data.push({
-                        workspace: context.workspaceName,
-                        project: context.projectName,
-                        artifactType: artifactName,
-                        count: results[i],
-                        error: null
-                    });
+                    var artifactName = supportedTypeDefs[selectedTypes[i]].Name,
+                        count = results[i].count,
+                        error = results[i].error;
+                        data.push({
+                            workspace: context.workspaceName,
+                            project: context.projectName,
+                            artifactType: artifactName,
+                            count: count,
+                            error: error
+                        });
+
                 }
                 deferred.resolve(data);
             },
