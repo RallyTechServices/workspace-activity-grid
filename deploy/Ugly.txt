@@ -3,10 +3,10 @@
 <head>
     <title>Workspace Activity</title>
     <!--  (c) 2015 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Thu Mar 31 2016 17:30:50 GMT-0600 (MDT) -->
+    <!--  Build Date: Thu Mar 31 2016 17:38:25 GMT-0600 (MDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Thu Mar 31 2016 17:30:50 GMT-0600 (MDT)";
+        var APP_BUILD_DATE = "Thu Mar 31 2016 17:38:25 GMT-0600 (MDT)";
         var CHECKSUM = [%= checksum %];
     </script>
     

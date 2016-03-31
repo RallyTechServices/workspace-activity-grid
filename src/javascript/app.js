@@ -36,11 +36,11 @@ Ext.define("WorkspaceActivityApp", {
             TypePath: 'portfolioitem',
             Name: "Portfolio Item",
             DateField: 'LastUpdateDate'
-        },
-        testcaseresult: {
-            TypePath: 'testcaseresult',
-            Name: 'Test Case Result',
-            DateField: 'Datrrre'
+        //},
+        //testcaseresult: {
+        //    TypePath: 'testcaseresult',
+        //    Name: 'Test Case Result',
+        //    DateField: 'Datrrre'
         }
     },
     daysBackDefault: 60,

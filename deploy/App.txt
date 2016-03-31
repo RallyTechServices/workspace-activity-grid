@@ -3,11 +3,11 @@
 <head>
     <title>Workspace Activity</title>
     <!--  (c) 2015 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Thu Mar 31 2016 17:30:50 GMT-0600 (MDT) -->
+    <!--  Build Date: Thu Mar 31 2016 17:38:25 GMT-0600 (MDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Thu Mar 31 2016 17:30:50 GMT-0600 (MDT)";
-        var CHECKSUM = 29640958598;
+        var APP_BUILD_DATE = "Thu Mar 31 2016 17:38:25 GMT-0600 (MDT)";
+        var CHECKSUM = 29656571773;
     </script>
     
     <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
@@ -830,11 +830,11 @@ Ext.define("WorkspaceActivityApp", {
             TypePath: 'portfolioitem',
             Name: "Portfolio Item",
             DateField: 'LastUpdateDate'
-        },
-        testcaseresult: {
-            TypePath: 'testcaseresult',
-            Name: 'Test Case Result',
-            DateField: 'Datrrre'
+        //},
+        //testcaseresult: {
+        //    TypePath: 'testcaseresult',
+        //    Name: 'Test Case Result',
+        //    DateField: 'Datrrre'
         }
     },
     daysBackDefault: 60,
